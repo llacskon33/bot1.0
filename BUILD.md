@@ -1,14 +1,19 @@
-# Bot 1.0 Android APK
+# Compilar Droid Windows
 
-## Build
-Open the project in Android Studio and run:
+## Android Studio
 
-- **Build > Build Bundle(s) / APK(s) > Build APK(s)**
+Abre el repositorio y selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**. La compilación descarga Chaquopy y crea un APK con Python 3.11 para `arm64-v8a` y `armeabi-v7a`.
 
-## Build with GitHub Actions
-The **Android debug APK** workflow builds the app on pushes, pull requests, and manual runs. Open the workflow run in GitHub Actions and download the `bot1.0-debug-apk` artifact.
+## Gradle
 
-## Notes
-- This project is currently a migration base.
-- Screen capture requires user consent.
-- The bot logic is a skeleton and must be completed with real frame processing.
+Requiere Android SDK, Java 17 y Gradle 8.7:
+
+```sh
+gradle --no-daemon :app:assembleDebug
+```
+
+El APK de depuración se genera en `app/build/outputs/apk/debug/app-debug.apk`. Chaquopy instala paquetes compatibles en tiempo de compilación; `pip install` dentro de la app no está habilitado.
+
+## GitHub Actions e instalación
+
+El workflow **Android debug APK** compila en cada push, pull request y ejecución manual. En **Actions**, abre la ejecución completada y descarga el artefacto `droid-windows-debug-apk`. Descomprímelo, transfiere el APK a Android y ábrelo para instalarlo. Si Android lo solicita, permite la instalación desde la aplicación que abrió el archivo.

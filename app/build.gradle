@@ -1,18 +1,25 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'com.chaquo.python'
 }
 
 android {
-    namespace 'com.llacskon33.bot1_0'
+    namespace 'com.llacskon33.droidwindows'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.llacskon33.bot1_0"
+        applicationId "com.llacskon33.droidwindows"
         minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        python {
+            version = "3.11"
+        }
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a"
+        }
     }
 
     buildTypes {

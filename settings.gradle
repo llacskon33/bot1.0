@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "bot1.0"
+rootProject.name = "DroidWindows"
 include(":app")

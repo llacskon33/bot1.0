@@ -1,11 +1,42 @@
-# Bot 1.0 - Android
+# Droid Windows para Android
 
-## Estado actual
-- La app solicita permiso del usuario para capturar la pantalla mediante MediaProjection.
-- Un servicio en primer plano procesa fotogramas capturados y los envía al flujo de decisiones del bot.
-- La visión y los controles del juego siguen pendientes: `VisionEngine` aún no detecta elementos y no se automatizan toques.
+Aplicación Android nativa con un escritorio inspirado en Windows 11. Este proyecto mantiene la interfaz de escritorio, el menú Inicio, el explorador y la terminal existentes, y añade una primera fase de Python y gestión de archivos.
 
-Este proyecto es una base Android independiente inspirada en las funciones de Pyla-RL; no contiene código del proyecto enlazado. No es todavía un bot jugable. Para completarlo hacen falta detección visual específica del juego y un mecanismo de control compatible con Android.
+## Funciones implementadas
 
-## Compilación
-Abre el proyecto en Android Studio y selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+- **Escritorio:** accesos al Explorador, Terminal y Python, barra de tareas y menú Inicio. Las aplicaciones se abren en ventanas que se pueden mover, minimizar, maximizar, restaurar y cerrar. Se pueden mantener varias aplicaciones abiertas y cambiar entre ellas desde la barra de tareas.
+- **Explorador:** navega por el espacio privado de la aplicación, crea archivos y carpetas, permite renombrar, copiar, mover y eliminar elementos, edita texto y código Python e importa archivos desde el selector de Android. Se pueden descargar enlaces HTTPS directos en la carpeta abierta y ver el progreso, cancelar y consultar las descargas incluso después de cerrar la pantalla.
+- **Python:** incluye el intérprete real Python 3.11 para `arm64-v8a` y `armeabi-v7a`. La aplicación permite crear proyectos con un `main.py`, crear, editar, guardar y ejecutar archivos `.py`; la terminal admite `python --version`, `python -c "..."` y `python archivo.py`.
+- **Terminal:** ejecuta operaciones reales del espacio de trabajo con `pwd`, `ls`, `dir`, `cd`, `mkdir`, `touch`, `cat`, `type`, `echo`, redirección `>` y `>>`, `cp`, `mv`, `rm`, `del`, `rmdir`, `python` y `clear`. Los comandos de archivos quedan confinados al espacio privado de Droid Windows; no se ejecuta un shell arbitrario del sistema Android.
+- **Descargas:** usa el gestor nativo de Android para transferencias en segundo plano. Los archivos se guardan en la carpeta actualmente abierta dentro del espacio de trabajo de la aplicación; no se solicita permiso de almacenamiento general. Solo acepta HTTPS para evitar descargas en texto claro. Android permite consultar progreso y cancelar, pero su `DownloadManager` público no ofrece controles para pausar y reanudar una descarga individual.
+
+Los scripts Python se ejecutan dentro del proceso de la aplicación y heredan los permisos de Android de esta; ejecuta únicamente código de confianza. La ejecución puede consumir CPU y memoria del teléfono.
+
+## Límites y siguientes fases
+
+- `pip install` interactivo no está disponible dentro de la aplicación: Chaquopy no incluye pip en tiempo de ejecución. Los paquetes compatibles deben declararse en Gradle e incorporarse al compilar la app. Los paquetes con código nativo solo funcionan si existe una distribución compatible con Android y la ABI seleccionada.
+- No se incluye extracción ZIP ni instalación de APK desde la app todavía. Los formatos que la app no previsualiza pueden abrirse con otra aplicación instalada. Las descargas aceptan enlaces HTTPS directos; no se incluye navegación web ni descarga desde servicios que requieran una sesión.
+- **Windows/EXE:** no se integra Wine ni QEMU. Wine traduce APIs de Windows y no convierte por sí solo un ejecutable x86 para un teléfono ARM; una solución completa requiere además traducción de CPU y una integración mantenida. QEMU puede emular un PC entero, pero el coste de CPU, memoria y almacenamiento hace que no sea una opción razonable para prometer una experiencia usable en móviles de recursos modestos como el realme C33. Estas tecnologías no se han integrado ni se afirma que los `.exe` funcionen. Como alternativa, se pueden evaluar por separado herramientas Android comunitarias como [Winlator](https://winlator.org/), comprobando compatibilidad y seguridad para cada dispositivo y programa; la app no las incluye ni las garantiza. Referencias: [Wine](https://www.winehq.org/) y [QEMU system emulation](https://www.qemu.org/docs/master/system/introduction.html).
+
+El `minSdk` es Android 7 (API 24), y el `targetSdk` es API 34; Android 13 está incluido. Los archivos se guardan en el directorio específico de la app, por lo que no se solicita acceso general al almacenamiento.
+
+Para incluir un paquete compatible al compilar, añádelo al bloque `python` de `app/build.gradle` y vuelve a generar el APK:
+
+```groovy
+python {
+    version = "3.11"
+    pip {
+        install "requests"
+    }
+}
+```
+
+## Compilar y descargar el APK
+
+Con Android Studio, abre el repositorio y selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**. También se puede compilar en un entorno configurado con Android SDK y Gradle 8.7:
+
+```sh
+gradle --no-daemon :app:assembleDebug
+```
+
+El archivo de instalación se genera en `app/build/outputs/apk/debug/app-debug.apk`. El workflow **Android debug APK** compila en cada push y pull request y publica el artefacto `droid-windows-debug-apk`: abre **Actions**, selecciona la ejecución completada y descarga ese artefacto. Descomprímelo, transfiere el APK al teléfono y ábrelo; Android puede solicitar que autorices temporalmente la instalación desde esa fuente. Revisa el origen del APK antes de instalarlo.

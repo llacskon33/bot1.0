@@ -91,12 +91,12 @@ class ScreenCaptureService : Service() {
         try {
             val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             val mediaProjection = manager.getMediaProjection(resultCode, resultData)
+            projection = mediaProjection
             val (width, height, density) = screenSize()
             val reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
+            imageReader = reader
             val thread = HandlerThread("BotScreenCapture").apply { start() }
 
-            projection = mediaProjection
-            imageReader = reader
             captureThread = thread
             mediaProjection.registerCallback(projectionCallback, Handler(thread.looper))
             reader.setOnImageAvailableListener({ source -> processLatestFrame(source) }, Handler(thread.looper))

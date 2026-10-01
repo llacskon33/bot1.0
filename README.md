@@ -9,3 +9,6 @@ Este proyecto es una base Android independiente inspirada en las funciones de Py
 
 ## Compilación
 Abre el proyecto en Android Studio y selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+
+## Descargar desde GitHub
+Al publicar una etiqueta que empiece por `v` (por ejemplo, `v1.0.0`), GitHub Actions compila el APK y lo adjunta a una nueva versión en **Releases**. Descarga `app-debug.apk` desde la página de [versiones](https://github.com/llacskon33/bot1.0/releases). También puedes descargar el artefacto `bot1.0-debug-apk` desde la ejecución de Actions; los artefactos se conservan durante 14 días.

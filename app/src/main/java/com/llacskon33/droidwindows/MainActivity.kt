@@ -38,6 +38,19 @@ class MainActivity : AppCompatActivity() {
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
     private var currentPage = Page.DESKTOP
     private var startMenu: View? = null
+    private var desktopRoot: FrameLayout? = null
+    private val appWindows = linkedMapOf<Page, AppWindow>()
+    private var activeWindow: Page? = null
+
+    private data class AppWindow(
+        val frame: LinearLayout,
+        val content: FrameLayout,
+        var maximized: Boolean = false,
+        var normalWidth: Int = 0,
+        var normalHeight: Int = 0,
+        var normalLeft: Int = 0,
+        var normalTop: Int = 0
+    )
 
     private val documentPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) openExternalDocument(uri)
@@ -67,7 +80,7 @@ class MainActivity : AppCompatActivity() {
                             startMenu = null
                         } else finish()
                     }
-                    else -> showDesktop()
+                    else -> minimizeWindow(currentPage)
                 }
             }
         })
@@ -80,6 +93,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showDesktop() {
+        desktopRoot?.let { root ->
+            dismissStartMenu()
+            appWindows.values.forEach { it.frame.visibility = View.GONE }
+            currentPage = Page.DESKTOP
+            activeWindow = null
+            setContentView(root)
+            return
+        }
         currentPage = Page.DESKTOP
         startMenu = null
         val root = FrameLayout(this).apply {
@@ -156,17 +177,17 @@ class MainActivity : AppCompatActivity() {
         taskbar.addView(textButton("📁", 20f).apply {
             setTextColor(Color.rgb(28, 42, 58))
             contentDescription = "Abrir explorador de archivos"
-            setOnClickListener { showExplorer(workspace.root) }
+            setOnClickListener { toggleWindow(Page.EXPLORER) { showExplorer(workspace.root) } }
         }, LinearLayout.LayoutParams(dp(48), dp(44)))
         taskbar.addView(textButton("›_", 15f).apply {
             setTextColor(Color.rgb(28, 42, 58))
             contentDescription = "Abrir terminal"
-            setOnClickListener { showTerminal() }
+            setOnClickListener { toggleWindow(Page.TERMINAL, ::showTerminal) }
         }, LinearLayout.LayoutParams(dp(48), dp(44)))
         taskbar.addView(textButton("Py", 14f).apply {
             setTextColor(Color.rgb(28, 42, 58))
             contentDescription = "Abrir Python"
-            setOnClickListener { showPython() }
+            setOnClickListener { toggleWindow(Page.PYTHON) { showPython() } }
         }, LinearLayout.LayoutParams(dp(48), dp(44)))
         taskbar.addView(TextView(this).apply {
             text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
@@ -176,6 +197,7 @@ class MainActivity : AppCompatActivity() {
         }, LinearLayout.LayoutParams(0, -1, 1f))
         desktop.addView(taskbar, LinearLayout.LayoutParams(-1, dp(62)))
         root.addView(desktop, FrameLayout.LayoutParams(-1, -1))
+        desktopRoot = root
         setContentView(root)
     }
 
@@ -217,6 +239,193 @@ class MainActivity : AppCompatActivity() {
         }
         root.addView(panel, params)
         startMenu = panel
+    }
+
+    private fun presentAppWindow(page: Page, title: String, app: View) {
+        val desktop = desktopRoot ?: return
+        dismissStartMenu()
+        var state = appWindows[page]
+        if (state == null) {
+            val content = FrameLayout(this)
+            val frame = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = rounded(Color.WHITE, dp(16))
+                clipToOutline = true
+                elevation = dp(12).toFloat()
+                isClickable = true
+            }
+            val titleBar = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(12), 0, dp(6), 0)
+                setBackgroundColor(Color.rgb(27, 48, 72))
+            }
+            val titleText = TextView(this).apply {
+                text = title
+                textSize = 14f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(4), 0, 0, 0)
+                maxLines = 1
+            }
+            titleBar.addView(titleText, LinearLayout.LayoutParams(0, -1, 1f))
+            titleBar.addView(windowControl("−", "Minimizar $title") { minimizeWindow(page) })
+            titleBar.addView(windowControl("□", "Maximizar o restaurar $title") { toggleMaximize(page) })
+            titleBar.addView(windowControl("×", "Cerrar $title") { closeWindow(page) })
+            frame.addView(titleBar, LinearLayout.LayoutParams(-1, dp(48)))
+            frame.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
+            state = AppWindow(frame, content)
+            appWindows[page] = state
+            desktop.addView(
+                frame,
+                FrameLayout.LayoutParams(-1, -1).apply {
+                    setMargins(dp(8), dp(8), dp(8), dp(78))
+                }
+            )
+            installWindowDragging(page, state, titleBar, titleText)
+            frame.post {
+                val createdWindow = appWindows[page] ?: return@post
+                if (createdWindow.frame !== frame || desktop.width == 0 || desktop.height == 0) return@post
+                val width = (desktop.width * 0.94f).toInt().coerceAtMost(desktop.width - dp(12))
+                val height = ((desktop.height - dp(92)).coerceAtLeast(dp(240)) * 0.82f).toInt()
+                val left = (desktop.width - width) / 2
+                val top = dp(10)
+                createdWindow.normalWidth = width
+                createdWindow.normalHeight = height
+                createdWindow.normalLeft = left
+                createdWindow.normalTop = top
+                (createdWindow.frame.layoutParams as FrameLayout.LayoutParams).apply {
+                    this.width = width
+                    this.height = height
+                    leftMargin = left
+                    topMargin = top
+                    rightMargin = 0
+                    bottomMargin = 0
+                }.also { createdWindow.frame.layoutParams = it }
+            }
+        }
+        val windowState = state ?: return
+        windowState.content.removeAllViews()
+        windowState.content.addView(app, FrameLayout.LayoutParams(-1, -1))
+        windowState.frame.visibility = View.VISIBLE
+        windowState.frame.bringToFront()
+        activeWindow = page
+        currentPage = page
+        setContentView(desktop)
+    }
+
+    private fun windowControl(label: String, description: String, action: () -> Unit): TextView =
+        textButton(label, 20f).apply {
+            contentDescription = description
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.TRANSPARENT)
+            setOnClickListener { action() }
+            layoutParams = LinearLayout.LayoutParams(dp(38), dp(40))
+        }
+
+    private fun installWindowDragging(page: Page, state: AppWindow, vararg handles: View) {
+        handles.forEach { handle ->
+            var downX = 0f
+            var downY = 0f
+            var startLeft = 0
+            var startTop = 0
+            handle.setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN -> {
+                        if (state.maximized) return@setOnTouchListener false
+                        val params = state.frame.layoutParams as FrameLayout.LayoutParams
+                        downX = event.rawX
+                        downY = event.rawY
+                        startLeft = params.leftMargin
+                        startTop = params.topMargin
+                        state.frame.bringToFront()
+                        activeWindow = page
+                        currentPage = page
+                        true
+                    }
+                    android.view.MotionEvent.ACTION_MOVE -> {
+                        val desktop = desktopRoot ?: return@setOnTouchListener false
+                        val params = state.frame.layoutParams as FrameLayout.LayoutParams
+                        params.leftMargin = (startLeft + event.rawX - downX).toInt()
+                            .coerceIn(0, (desktop.width - state.frame.width).coerceAtLeast(0))
+                        params.topMargin = (startTop + event.rawY - downY).toInt()
+                            .coerceIn(0, (desktop.height - state.frame.height).coerceAtLeast(0))
+                        state.frame.layoutParams = params
+                        true
+                    }
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL -> true
+                    else -> false
+                }
+            }
+        }
+    }
+
+    private fun toggleMaximize(page: Page) {
+        val state = appWindows[page] ?: return
+        val params = state.frame.layoutParams as FrameLayout.LayoutParams
+        if (state.maximized) {
+            params.width = state.normalWidth
+            params.height = state.normalHeight
+            params.leftMargin = state.normalLeft
+            params.topMargin = state.normalTop
+            params.rightMargin = 0
+            params.bottomMargin = 0
+        } else {
+            state.normalWidth = params.width
+            state.normalHeight = params.height
+            state.normalLeft = params.leftMargin
+            state.normalTop = params.topMargin
+            params.width = -1
+            params.height = -1
+            params.leftMargin = dp(4)
+            params.topMargin = dp(4)
+            params.rightMargin = dp(4)
+            params.bottomMargin = dp(76)
+        }
+        state.maximized = !state.maximized
+        state.frame.layoutParams = params
+    }
+
+    private fun toggleWindow(page: Page, launch: () -> Unit) {
+        val state = appWindows[page]
+        if (state == null) {
+            launch()
+        } else if (state.frame.visibility == View.VISIBLE && activeWindow == page) {
+            minimizeWindow(page)
+        } else {
+            dismissStartMenu()
+            state.frame.visibility = View.VISIBLE
+            state.frame.bringToFront()
+            activeWindow = page
+            currentPage = page
+        }
+    }
+
+    private fun minimizeWindow(page: Page) {
+        appWindows[page]?.frame?.visibility = View.GONE
+        if (activeWindow == page) {
+            val next = appWindows.entries.lastOrNull { it.key != page && it.value.frame.visibility == View.VISIBLE }
+            activeWindow = next?.key
+            next?.value?.frame?.bringToFront()
+            currentPage = next?.key ?: Page.DESKTOP
+        }
+    }
+
+    private fun closeWindow(page: Page) {
+        appWindows.remove(page)?.let { desktopRoot?.removeView(it.frame) }
+        if (activeWindow == page) {
+            val next = appWindows.entries.lastOrNull { it.value.frame.visibility == View.VISIBLE }
+            activeWindow = next?.key
+            next?.value?.frame?.bringToFront()
+            currentPage = next?.key ?: Page.DESKTOP
+        }
+    }
+
+    private fun dismissStartMenu() {
+        startMenu?.let { (it.parent as? FrameLayout)?.removeView(it) }
+        startMenu = null
     }
 
     private fun showExplorer(directory: File) {
@@ -294,7 +503,7 @@ class MainActivity : AppCompatActivity() {
         }
         scroll.addView(entries)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        setContentView(root)
+        presentAppWindow(Page.EXPLORER, "Explorador", root)
     }
 
     private fun showFileActions(directory: File, file: File) {
@@ -535,13 +744,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        listOf(newButton, openButton, saveButton, runButton).forEach {
+        val projectButton = actionButton("Proyecto") {
+            promptForName("Nuevo proyecto Python") { projectName ->
+                runCatching {
+                    val directory = workspace.createDirectory(workspace.root, projectName)
+                    try {
+                        val script = workspace.createFile(directory, "main.py")
+                        workspace.writeText(
+                            script,
+                            "def main():\n    print(\"¡Hola desde $projectName!\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+                        )
+                        script
+                    } catch (error: Exception) {
+                        runCatching { workspace.delete(directory, recursive = true) }
+                        throw error
+                    }
+                }.onSuccess { showPython(it) }
+                    .onFailure { toast(it.message ?: "No se pudo crear el proyecto") }
+            }
+        }
+        listOf(newButton, openButton, saveButton, runButton, projectButton).forEach {
             buttons.addView(it, LinearLayout.LayoutParams(0, dp(48), 1f).apply {
                 setMargins(dp(3), 0, dp(3), 0)
             })
         }
         root.addView(buttons)
-        setContentView(root)
+        presentAppWindow(Page.PYTHON, "Python", root)
     }
 
     private fun showTerminal() {
@@ -608,7 +836,7 @@ class MainActivity : AppCompatActivity() {
             setMargins(dp(8), 0, 0, 0)
         })
         root.addView(commandRow)
-        setContentView(root)
+        presentAppWindow(Page.TERMINAL, "Terminal", root)
     }
 
     private fun appHeader(title: String, subtitle: String, icon: String, onBack: () -> Unit): LinearLayout {

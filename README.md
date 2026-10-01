@@ -4,16 +4,16 @@ Aplicación Android nativa con un escritorio inspirado en Windows 11. Este proye
 
 ## Funciones implementadas
 
-- **Escritorio:** accesos al Explorador, Terminal y Python, barra de tareas y menú Inicio. La interfaz se adapta a móviles; todavía no usa ventanas flotantes ni admite varias ventanas simultáneas.
+- **Escritorio:** accesos al Explorador, Terminal y Python, barra de tareas y menú Inicio. Las aplicaciones se abren en ventanas que se pueden mover, minimizar, maximizar, restaurar y cerrar. Se pueden mantener varias aplicaciones abiertas y cambiar entre ellas desde la barra de tareas.
 - **Explorador:** navega por el espacio privado de la aplicación, crea archivos y carpetas, permite renombrar, copiar, mover y eliminar elementos, edita texto y código Python e importa archivos desde el selector de Android.
-- **Python:** incluye el intérprete real Python 3.11 para `arm64-v8a` y `armeabi-v7a`. La aplicación permite crear, editar, guardar y ejecutar archivos `.py`; la terminal admite `python --version`, `python -c "..."` y `python archivo.py`.
+- **Python:** incluye el intérprete real Python 3.11 para `arm64-v8a` y `armeabi-v7a`. La aplicación permite crear proyectos con un `main.py`, crear, editar, guardar y ejecutar archivos `.py`; la terminal admite `python --version`, `python -c "..."` y `python archivo.py`.
 - **Terminal:** ejecuta operaciones reales del espacio de trabajo con `pwd`, `ls`, `dir`, `cd`, `mkdir`, `touch`, `cat`, `type`, `echo`, redirección `>` y `>>`, `cp`, `mv`, `rm`, `del`, `rmdir`, `python` y `clear`. Los comandos de archivos quedan confinados al espacio privado de Droid Windows; no se ejecuta un shell arbitrario del sistema Android.
 
 Los scripts Python se ejecutan dentro del proceso de la aplicación y heredan los permisos de Android de esta; ejecuta únicamente código de confianza. La ejecución puede consumir CPU y memoria del teléfono.
 
 ## Límites y siguientes fases
 
-- `pip install` interactivo no está disponible dentro de la aplicación. Chaquopy incorpora paquetes compatibles durante la compilación; los paquetes deben declararse en Gradle y compilarse junto con la app. Los paquetes con código nativo solo funcionan si existe una distribución compatible con Android y la ABI seleccionada.
+- `pip install` interactivo no está disponible dentro de la aplicación: Chaquopy no incluye pip en tiempo de ejecución. Los paquetes compatibles deben declararse en Gradle e incorporarse al compilar la app. Los paquetes con código nativo solo funcionan si existe una distribución compatible con Android y la ABI seleccionada.
 - No hay descargas HTTP integradas, gestor de descargas, extracción ZIP ni instalación de APK desde la app todavía. Se pueden importar archivos mediante el selector de Android y abrir formatos para los que haya otra aplicación instalada.
 - No se incluye Wine ni QEMU y no se ejecutan programas `.exe`. Ejecutar software de PC requiere emulación/traducción de CPU, acceso al sistema operativo y recursos que no se pueden garantizar en Android; el rendimiento y la compatibilidad variarían mucho según el programa y el dispositivo.
 

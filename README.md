@@ -1,14 +1,13 @@
 # Bot 1.0 - Android Migration
 
-Migración de Pyla-RL a Android.
-
 ## Estado
 - Estructura Android base creada
 - Esqueleto de lógica portado a Kotlin
-- Falta implementar captura/visión real y controles Android
+- Servicio de captura por MediaProjection añadido
+- Falta conectar la captura real con VisionEngine
 
 ## Próximos pasos
-- Integrar captura de pantalla
-- Implementar detección real
-- Añadir permisos Android necesarios
-- Compilar APK debug
+- Implementar frame processing
+- Conectar pantalla capturada al bot
+- Revisar permisos runtime
+- Generar APK debug

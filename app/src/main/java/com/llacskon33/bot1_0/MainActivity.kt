@@ -1,28 +1,27 @@
-package com.llacskon33.bot1_0
+package com.llacskon33.bot1_0.ui
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import android.widget.TextView
-import android.view.Gravity
-import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatActivity
+import com.llacskon33.bot1_0.core.BotDecision
+import com.llacskon33.bot1_0.core.BrawlStarsBot
 
 class MainActivity : AppCompatActivity() {
+    private val bot = BrawlStarsBot()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val textView = TextView(this).apply {
-            text = "Bot 1.0\nAndroid base ready"
-            textSize = 22f
-            gravity = Gravity.CENTER
+        val tv = TextView(this).apply {
+            text = "Bot 1.0\nAndroid migration in progress"
+            textSize = 20f
+            setPadding(48, 48, 48, 48)
         }
+        setContentView(tv)
+    }
 
-        val layout = FrameLayout(this).apply {
-            addView(textView, FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            ))
-        }
-
-        setContentView(layout)
+    fun debugDecision(): String {
+        val decision = BotDecision.SearchAndPatrol
+        return "Decision: $decision"
     }
 }

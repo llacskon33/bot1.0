@@ -1,12 +1,14 @@
 # Bot 1.0 - Android Migration
 
-Migración de Pyla-RL (Brawl Stars Bot) a APK Android nativo.
+Migración de Pyla-RL a Android.
 
 ## Estado
-🚀 En construcción...
+- Estructura Android base creada
+- Esqueleto de lógica portado a Kotlin
+- Falta implementar captura/visión real y controles Android
 
 ## Próximos pasos
-- [ ] Estructura Android Gradle
-- [ ] Base de la app Android
-- [ ] Portar lógica útil de Pyla-RL
-- [ ] Compilación APK
+- Integrar captura de pantalla
+- Implementar detección real
+- Añadir permisos Android necesarios
+- Compilar APK debug

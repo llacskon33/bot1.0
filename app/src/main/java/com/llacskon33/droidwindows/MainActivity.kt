@@ -296,7 +296,7 @@ class MainActivity : AppCompatActivity() {
         }
         val command = EditText(this).apply {
             hint = "Escribe un comando"
-            singleLine = true
+            setSingleLine(true)
             textSize = 14f
             setPadding(dp(14), 0, dp(12), 0)
             background = rounded(Color.WHITE, dp(14))

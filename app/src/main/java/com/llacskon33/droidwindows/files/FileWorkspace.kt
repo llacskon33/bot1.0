@@ -26,6 +26,62 @@ class FileWorkspace(context: Context) {
         return file
     }
 
+    fun rename(file: File, name: String): File {
+        val source = resolve(file.absolutePath)
+        require(source != root.canonicalFile) { "No se puede renombrar el espacio de trabajo" }
+        val destination = child(source.parentFile ?: root, name)
+        check(!destination.exists()) { "Ya existe un archivo con ese nombre" }
+        check(source.renameTo(destination)) { "No se pudo renombrar" }
+        return destination
+    }
+
+    fun copy(source: File, destination: File, recursive: Boolean = false): File {
+        val safeSource = resolve(source.absolutePath)
+        val requestedDestination = resolve(destination.absolutePath)
+        require(safeSource != root.canonicalFile) { "No se puede copiar el espacio de trabajo completo" }
+        require(!safeSource.isDirectory || recursive) { "Para copiar carpetas usa cp -r" }
+        require(requestedDestination != safeSource &&
+            !(safeSource.isDirectory && requestedDestination.path.startsWith(safeSource.path + File.separator))) {
+            "No se puede copiar una carpeta dentro de sí misma"
+        }
+        val target = if (requestedDestination.isDirectory) {
+            resolve(File(requestedDestination, safeSource.name).absolutePath)
+        } else {
+            requestedDestination
+        }
+        copyContained(safeSource, target)
+        return target
+    }
+
+    fun move(source: File, destination: File): File {
+        val safeSource = resolve(source.absolutePath)
+        val requestedDestination = resolve(destination.absolutePath)
+        require(safeSource != root.canonicalFile) { "No se puede mover el espacio de trabajo" }
+        require(requestedDestination != safeSource &&
+            !(safeSource.isDirectory && requestedDestination.path.startsWith(safeSource.path + File.separator))) {
+            "No se puede mover una carpeta dentro de sí misma"
+        }
+        val target = if (requestedDestination.isDirectory) {
+            resolve(File(requestedDestination, safeSource.name).absolutePath)
+        } else {
+            requestedDestination
+        }
+        check(!target.exists()) { "Ya existe un archivo con ese nombre" }
+        check(safeSource.renameTo(target)) { "No se pudo mover el archivo" }
+        return target
+    }
+
+    fun delete(file: File, recursive: Boolean = false) {
+        val safeFile = resolve(file.absolutePath)
+        require(safeFile != root.canonicalFile) { "No se puede eliminar el espacio de trabajo" }
+        if (safeFile.isDirectory) {
+            val children = safeFile.listFiles()?.toList().orEmpty()
+            require(recursive || children.isEmpty()) { "La carpeta no está vacía; usa rm -r" }
+            children.forEach { deleteContained(it) }
+        }
+        check(safeFile.delete()) { "No se pudo eliminar" }
+    }
+
     fun writeText(file: File, text: String) {
         resolve(file.absolutePath).writeText(text)
     }
@@ -41,6 +97,19 @@ class FileWorkspace(context: Context) {
         val safeFile = resolve(file.absolutePath)
         val relative = safeFile.relativeTo(root.canonicalFile).path
         return if (relative == ".") "/" else "/$relative"
+    }
+
+    fun filesWithExtension(extension: String): List<File> {
+        val suffix = extension.removePrefix(".").lowercase()
+        val matches = mutableListOf<File>()
+        fun collect(directory: File) {
+            list(directory).forEach { file ->
+                if (file.isDirectory) collect(file)
+                else if (file.extension.lowercase() == suffix) matches.add(file)
+            }
+        }
+        collect(root)
+        return matches
     }
 
     fun resolve(path: String, base: File = root): File {
@@ -64,6 +133,28 @@ class FileWorkspace(context: Context) {
         val parent = resolve(directory.absolutePath)
         require(parent.isDirectory) { "No es una carpeta" }
         return resolve(validName, parent)
+    }
+
+    private fun copyContained(source: File, destination: File) {
+        val safeSource = resolve(source.absolutePath)
+        val safeDestination = resolve(destination.absolutePath)
+        check(!safeDestination.exists()) { "Ya existe un archivo con ese nombre" }
+        if (safeSource.isDirectory) {
+            check(safeDestination.mkdir()) { "No se pudo crear la carpeta de destino" }
+            safeSource.listFiles()?.forEach { child ->
+                copyContained(child, File(safeDestination, child.name))
+            }
+        } else {
+            safeSource.copyTo(safeDestination, overwrite = false)
+        }
+    }
+
+    private fun deleteContained(file: File) {
+        val safeFile = resolve(file.absolutePath)
+        if (safeFile.isDirectory) {
+            safeFile.listFiles()?.forEach { deleteContained(it) }
+        }
+        check(safeFile.delete()) { "No se pudo eliminar ${safeFile.name}" }
     }
 
     companion object {

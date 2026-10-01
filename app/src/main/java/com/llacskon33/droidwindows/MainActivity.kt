@@ -1040,6 +1040,7 @@ class MainActivity : AppCompatActivity() {
                 destination.delete()
                 throw error
             }
+            destination
         }.onSuccess {
             toast("Importado en ${workspace.displayPath(it)}")
             showExplorer(workspace.root)

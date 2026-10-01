@@ -1,14 +1,17 @@
-# Bot 1.0 Android APK
+# Compilar Droid Windows
 
-## Build
-Open the project in Android Studio and run:
+## Android Studio
 
-- **Build > Build Bundle(s) / APK(s) > Build APK(s)**
+Abre el repositorio y selecciona **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
 
-## Build with GitHub Actions
-The **Android debug APK** workflow builds the app on pushes, pull requests, and manual runs. Open the workflow run in GitHub Actions and download the `bot1.0-debug-apk` artifact.
+## Gradle
 
-## Notes
-- This project is currently a migration base.
-- Screen capture requires user consent.
-- The bot logic is a skeleton and must be completed with real frame processing.
+```sh
+gradle --no-daemon :app:assembleDebug
+```
+
+El APK instalable de depuración se encuentra en `app/build/outputs/apk/debug/app-debug.apk`.
+
+## GitHub Actions
+
+El workflow **Android debug APK** compila en cada push, pull request y ejecución manual. Descarga el artefacto `droid-windows-debug-apk` desde la ejecución de Actions.

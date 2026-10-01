@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.llacskon33.bot1_0'
+    namespace 'com.llacskon33.droidwindows'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.llacskon33.bot1_0"
+        applicationId "com.llacskon33.droidwindows"
         minSdk 24
         targetSdk 34
         versionCode 1

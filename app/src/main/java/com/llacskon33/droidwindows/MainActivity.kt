@@ -7,6 +7,8 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -14,6 +16,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -24,6 +27,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import com.llacskon33.droidwindows.files.FileWorkspace
+import com.llacskon33.droidwindows.files.WorkspaceDownloads
 import com.llacskon33.droidwindows.runtime.PythonRuntimeProvider
 import com.llacskon33.droidwindows.terminal.TerminalSession
 import java.io.File
@@ -34,8 +38,17 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
     private lateinit var workspace: FileWorkspace
+    private lateinit var downloads: WorkspaceDownloads
     private lateinit var terminal: TerminalSession
     private val backgroundExecutor = Executors.newSingleThreadExecutor()
+    private val downloadRefreshHandler = Handler(Looper.getMainLooper())
+    private val downloadRefreshTask = object : Runnable {
+        override fun run() {
+            if (appWindows[Page.DOWNLOADS]?.frame?.visibility == View.VISIBLE) {
+                showDownloads()
+            }
+        }
+    }
     private var currentPage = Page.DESKTOP
     private var startMenu: View? = null
     private var desktopRoot: FrameLayout? = null
@@ -59,11 +72,12 @@ class MainActivity : AppCompatActivity() {
         if (uri != null) importExternalDocument(uri)
     }
 
-    private enum class Page { DESKTOP, EXPLORER, TERMINAL, PYTHON }
+    private enum class Page { DESKTOP, EXPLORER, TERMINAL, PYTHON, DOWNLOADS }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         workspace = FileWorkspace(this)
+        downloads = WorkspaceDownloads(this, workspace)
         terminal = TerminalSession(
             workspace,
             { source, directory, filename -> PythonRuntimeProvider.executeCode(this, source, directory, filename) },
@@ -88,6 +102,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        downloadRefreshHandler.removeCallbacks(downloadRefreshTask)
         backgroundExecutor.shutdownNow()
         super.onDestroy()
     }
@@ -194,6 +209,11 @@ class MainActivity : AppCompatActivity() {
             contentDescription = "Abrir Python"
             setOnClickListener { toggleWindow(Page.PYTHON) { showPython() } }
         }, LinearLayout.LayoutParams(dp(48), dp(44)))
+        taskbar.addView(textButton("↓", 20f).apply {
+            setTextColor(Color.rgb(28, 42, 58))
+            contentDescription = "Abrir descargas"
+            setOnClickListener { openDownloads() }
+        }, LinearLayout.LayoutParams(dp(48), dp(44)))
         taskbar.addView(TextView(this).apply {
             text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             textSize = 13f
@@ -235,6 +255,7 @@ class MainActivity : AppCompatActivity() {
         })
         panel.addView(menuItem("›_", "Terminal") { openWindow(Page.TERMINAL, ::showTerminal) })
         panel.addView(menuItem("Py", "Python y proyectos") { openWindow(Page.PYTHON) { showPython() } })
+        panel.addView(menuItem("↓", "Descargas") { openDownloads() })
         panel.addView(TextView(this).apply {
             text = "Droid Windows · Android"
             textSize = 12f
@@ -473,6 +494,17 @@ class MainActivity : AppCompatActivity() {
             documentImporter.launch(arrayOf("*/*"))
         }, weightParams(dp(42), 1f))
         root.addView(actions)
+        val downloadActions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(12), 0, dp(12), dp(8))
+        }
+        downloadActions.addView(actionButton("↓ Descargar desde enlace") {
+            promptForDownload(directory)
+        }, weightParams(dp(42), 1f))
+        downloadActions.addView(actionButton("Gestor de descargas") {
+            openDownloads()
+        }, weightParams(dp(42), 1f))
+        root.addView(downloadActions)
         root.addView(TextView(this).apply {
             text = workspace.displayPath(directory)
             textSize = 13f
@@ -519,6 +551,118 @@ class MainActivity : AppCompatActivity() {
         scroll.addView(entries)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         presentAppWindow(Page.EXPLORER, "Explorador", root)
+    }
+
+    private fun promptForDownload(directory: File) {
+        val urlInput = EditText(this).apply {
+            hint = "https://ejemplo.com/archivo.zip"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Descargar archivo")
+            .setMessage("Se guardará en ${workspace.displayPath(directory)}")
+            .setView(urlInput)
+            .setPositiveButton("Descargar") { _, _ ->
+                runCatching { downloads.enqueue(urlInput.text.toString(), directory) }
+                    .onSuccess {
+                        openDownloads()
+                        toast("Descarga iniciada")
+                    }
+                    .onFailure { toast(it.message ?: "No se pudo iniciar la descarga") }
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun openDownloads() {
+        val alreadyOpen = appWindows.containsKey(Page.DOWNLOADS)
+        openWindow(Page.DOWNLOADS, ::showDownloads)
+        if (alreadyOpen) showDownloads()
+    }
+
+    private fun showDownloads() {
+        currentPage = Page.DOWNLOADS
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(243, 246, 250))
+        }
+        root.addView(appHeader("Descargas", "Transferencias administradas por Android", "‹") {
+            minimizeWindow(Page.DOWNLOADS)
+        })
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(12), dp(10), dp(12), dp(8))
+        }
+        actions.addView(actionButton("＋ Descargar enlace") {
+            promptForDownload(workspace.root)
+        }, weightParams(dp(42), 1f))
+        actions.addView(actionButton("Actualizar") { showDownloads() }, weightParams(dp(42), 1f))
+        root.addView(actions)
+        root.addView(TextView(this).apply {
+            text = "El progreso continúa en segundo plano. Android permite cancelar, pero no ofrece pausa y reanudación individuales."
+            textSize = 12f
+            setTextColor(Color.rgb(77, 95, 116))
+            setPadding(dp(16), dp(4), dp(16), dp(10))
+        })
+
+        val scroll = ScrollView(this)
+        val entries = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), 0, dp(12), dp(16))
+        }
+        val tasks = downloads.list()
+        if (tasks.isEmpty()) {
+            entries.addView(TextView(this).apply {
+                text = "No hay descargas registradas."
+                textSize = 14f
+                setTextColor(Color.rgb(95, 108, 124))
+                setPadding(dp(12), dp(22), dp(12), dp(22))
+            })
+        }
+        tasks.forEach { task ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(12), dp(14), dp(12))
+                background = rounded(Color.WHITE, dp(14))
+            }
+            item.addView(TextView(this).apply {
+                text = task.file.name
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(35, 48, 64))
+            })
+            val transferDetails = if (task.totalBytes > 0) {
+                "${formatBytes(task.downloadedBytes)} de ${formatBytes(task.totalBytes)}"
+            } else {
+                "${formatBytes(task.downloadedBytes)} descargados"
+            }
+            item.addView(TextView(this).apply {
+                text = "${task.statusLabel} · $transferDetails\n${workspace.displayPath(task.file)}"
+                textSize = 12f
+                setTextColor(Color.rgb(77, 95, 116))
+                setPadding(0, dp(4), 0, dp(6))
+            })
+            if (task.isActive) {
+                item.addView(ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    isIndeterminate = task.progressPercent == null
+                    task.progressPercent?.let { progress = it }
+                }, LinearLayout.LayoutParams(-1, dp(6)))
+            }
+            val taskAction = actionButton(if (task.isActive) "Cancelar" else "Quitar de la lista") {
+                if (task.isActive) downloads.cancel(task.id) else downloads.forget(task.id)
+                showDownloads()
+            }
+            item.addView(taskAction, LinearLayout.LayoutParams(-1, dp(40)))
+            entries.addView(item, LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = dp(8)
+            })
+        }
+        scroll.addView(entries)
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        presentAppWindow(Page.DOWNLOADS, "Descargas", root)
+        downloadRefreshHandler.removeCallbacks(downloadRefreshTask)
+        downloadRefreshHandler.postDelayed(downloadRefreshTask, 1_000L)
     }
 
     private fun showFileActions(directory: File, file: File) {
@@ -1104,6 +1248,8 @@ class MainActivity : AppCompatActivity() {
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         else -> String.format(Locale.getDefault(), "%.1f MB", bytes / (1024f * 1024f))
     }
+
+    private fun formatBytes(bytes: Long) = fileSize(bytes.coerceAtLeast(0))
 
     private fun weightParams(height: Int, weight: Float) =
         LinearLayout.LayoutParams(0, height, weight).apply { setMargins(dp(3), 0, dp(3), 0) }

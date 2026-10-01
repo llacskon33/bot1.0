@@ -6,5 +6,12 @@ pluginManagement {
     }
 }
 
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 rootProject.name = "bot1.0"
 include(":app")

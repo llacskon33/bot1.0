@@ -45,7 +45,11 @@ class FileWorkspace(context: Context) {
 
     fun resolve(path: String, base: File = root): File {
         val rootCanonical = root.canonicalFile
-        val candidate = if (path.startsWith("/")) File(rootCanonical, path.removePrefix("/")) else File(base, path)
+        val candidate = when {
+            path == rootCanonical.path || path.startsWith(rootCanonical.path + File.separator) -> File(path)
+            path.startsWith("/") -> File(rootCanonical, path.removePrefix("/"))
+            else -> File(base, path)
+        }
         val canonical = candidate.canonicalFile
         require(canonical == rootCanonical || canonical.path.startsWith(rootCanonical.path + File.separator)) {
             "La ruta debe permanecer dentro del espacio de trabajo"

@@ -1,3 +1,11 @@
 <resources>
     <string name="app_name">bot1.0</string>
+    <string name="start_capture">Iniciar captura</string>
+    <string name="stop_capture">Detener captura</string>
+    <string name="capture_stopped">Captura detenida</string>
+    <string name="capture_starting">Iniciando captura…</string>
+    <string name="capture_running">Captura activa; analizando fotogramas</string>
+    <string name="capture_permission_denied">No se autorizó la captura de pantalla</string>
+    <string name="capture_error">No se pudo iniciar la captura</string>
+    <string name="capture_limitation">La captura y el flujo de análisis ya están conectados. La visión aún no detecta jugadores u objetos y no se envían controles al juego.</string>
 </resources>

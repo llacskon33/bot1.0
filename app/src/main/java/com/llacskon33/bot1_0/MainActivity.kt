@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import com.llacskon33.bot1_0.R
 import com.llacskon33.bot1_0.capture.ScreenCaptureHelper
 import com.llacskon33.bot1_0.capture.ScreenCaptureService
 

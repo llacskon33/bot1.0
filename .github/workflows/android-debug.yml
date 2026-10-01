@@ -56,7 +56,7 @@ jobs:
       contents: write
     steps:
       - name: Download debug APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v4.3.0
         with:
           name: bot1.0-debug-apk
           path: apk

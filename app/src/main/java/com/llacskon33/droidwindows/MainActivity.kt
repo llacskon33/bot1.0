@@ -98,7 +98,6 @@ class MainActivity : AppCompatActivity() {
             appWindows.values.forEach { it.frame.visibility = View.GONE }
             currentPage = Page.DESKTOP
             activeWindow = null
-            setContentView(root)
             return
         }
         currentPage = Page.DESKTOP
@@ -128,9 +127,15 @@ class MainActivity : AppCompatActivity() {
         })
 
         val shortcuts = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        shortcuts.addView(shortcut("📁", "Explorador") { showExplorer(workspace.root) }, weightParams(0, 1f))
-        shortcuts.addView(shortcut("›_", "Terminal") { showTerminal() }, weightParams(0, 1f))
-        shortcuts.addView(shortcut("Py", "Python") { showPython() }, weightParams(0, 1f))
+        shortcuts.addView(shortcut("📁", "Explorador") {
+            openWindow(Page.EXPLORER) { showExplorer(workspace.root) }
+        }, weightParams(0, 1f))
+        shortcuts.addView(shortcut("›_", "Terminal") {
+            openWindow(Page.TERMINAL, ::showTerminal)
+        }, weightParams(0, 1f))
+        shortcuts.addView(shortcut("Py", "Python") {
+            openWindow(Page.PYTHON) { showPython() }
+        }, weightParams(0, 1f))
         desktop.addView(shortcuts)
 
         val welcome = LinearLayout(this).apply {
@@ -225,9 +230,11 @@ class MainActivity : AppCompatActivity() {
             setTextColor(Color.rgb(90, 105, 122))
             setPadding(0, dp(15), 0, dp(8))
         })
-        panel.addView(menuItem("📁", "Explorador de archivos") { showExplorer(workspace.root) })
-        panel.addView(menuItem("›_", "Terminal") { showTerminal() })
-        panel.addView(menuItem("Py", "Python y proyectos") { showPython() })
+        panel.addView(menuItem("📁", "Explorador de archivos") {
+            openWindow(Page.EXPLORER) { showExplorer(workspace.root) }
+        })
+        panel.addView(menuItem("›_", "Terminal") { openWindow(Page.TERMINAL, ::showTerminal) })
+        panel.addView(menuItem("Py", "Python y proyectos") { openWindow(Page.PYTHON) { showPython() } })
         panel.addView(TextView(this).apply {
             text = "Droid Windows · Android"
             textSize = 12f
@@ -312,7 +319,6 @@ class MainActivity : AppCompatActivity() {
         windowState.frame.bringToFront()
         activeWindow = page
         currentPage = page
-        setContentView(desktop)
     }
 
     private fun windowControl(label: String, description: String, action: () -> Unit): TextView =
@@ -395,6 +401,15 @@ class MainActivity : AppCompatActivity() {
         } else if (state.frame.visibility == View.VISIBLE && activeWindow == page) {
             minimizeWindow(page)
         } else {
+            openWindow(page, launch)
+        }
+    }
+
+    private fun openWindow(page: Page, launch: () -> Unit) {
+        val state = appWindows[page]
+        if (state == null) {
+            launch()
+        } else {
             dismissStartMenu()
             state.frame.visibility = View.VISIBLE
             state.frame.bringToFront()
@@ -435,7 +450,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(243, 246, 250))
         }
-        root.addView(appHeader("Explorador", "Tus archivos", "‹") { showDesktop() })
+        root.addView(appHeader("Explorador", "Tus archivos", "‹") { minimizeWindow(Page.EXPLORER) })
 
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -576,7 +591,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(243, 246, 250))
         }
-        root.addView(appHeader("Python", "Python 3.11 integrado · Android", "‹") { showDesktop() })
+        root.addView(appHeader("Python", "Python 3.11 integrado · Android", "‹") { minimizeWindow(Page.PYTHON) })
 
         val name = EditText(this).apply {
             hint = "Nombre del archivo .py"
@@ -752,7 +767,7 @@ class MainActivity : AppCompatActivity() {
                         val script = workspace.createFile(directory, "main.py")
                         workspace.writeText(
                             script,
-                            "def main():\n    print(\"¡Hola desde $projectName!\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
+                            "def main():\n    print(\"Hola desde mi proyecto\")\n\n\nif __name__ == \"__main__\":\n    main()\n"
                         )
                         script
                     } catch (error: Exception) {
@@ -779,7 +794,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.rgb(243, 246, 250))
         }
-        root.addView(appHeader("Terminal", "Terminal de Droid Windows", "‹") { showDesktop() })
+        root.addView(appHeader("Terminal", "Terminal de Droid Windows", "‹") { minimizeWindow(Page.TERMINAL) })
         val output = TextView(this).apply {
             text = "Droid Windows Terminal\nEscribe «help» para ver los comandos disponibles.\n\n${terminal.prompt()}"
             textSize = 14f
